@@ -1,0 +1,1161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ChainMate — Blockchain Chess</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #050a0f;
+    --panel: #0a1520;
+    --border: #0f3a5a;
+    --accent: #00d4ff;
+    --accent2: #ff6b35;
+    --accent3: #39ff14;
+    --gold: #ffd700;
+    --white-sq: #1a3a5c;
+    --black-sq: #050f1a;
+    --white-piece: #e8f4f8;
+    --black-piece: #0a2535;
+    --glow: 0 0 20px rgba(0,212,255,0.4);
+    --glow2: 0 0 20px rgba(255,107,53,0.4);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: #cce8f4;
+    font-family: 'Rajdhani', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+    background-image: 
+      radial-gradient(ellipse at 20% 50%, rgba(0,212,255,0.04) 0%, transparent 60%),
+      radial-gradient(ellipse at 80% 20%, rgba(255,107,53,0.04) 0%, transparent 60%);
+  }
+
+  /* SCANLINE EFFECT */
+  body::after {
+    content: '';
+    position: fixed; inset: 0;
+    background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.03) 2px, rgba(0,0,0,0.03) 4px);
+    pointer-events: none; z-index: 9999;
+  }
+
+  header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px 32px;
+    border-bottom: 1px solid var(--border);
+    background: rgba(10,21,32,0.95);
+    backdrop-filter: blur(10px);
+    position: sticky; top: 0; z-index: 100;
+  }
+  .logo {
+    font-family: 'Orbitron', monospace;
+    font-size: 22px; font-weight: 900;
+    color: var(--accent);
+    text-shadow: var(--glow);
+    letter-spacing: 4px;
+  }
+  .logo span { color: var(--accent2); }
+  .chain-status {
+    display: flex; align-items: center; gap: 8px;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 12px; color: var(--accent3);
+  }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent3);
+    animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+  .block-info { font-size: 11px; color: #5a8fa8; font-family: 'Share Tech Mono', monospace; }
+
+  .main-container {
+    display: grid;
+    grid-template-columns: 280px 1fr 280px;
+    gap: 0;
+    min-height: calc(100vh - 60px);
+  }
+
+  .side-panel {
+    background: var(--panel);
+    border-right: 1px solid var(--border);
+    padding: 20px;
+    display: flex; flex-direction: column; gap: 16px;
+  }
+  .side-panel.right { border-right: none; border-left: 1px solid var(--border); }
+
+  .panel-title {
+    font-family: 'Orbitron', monospace;
+    font-size: 11px; letter-spacing: 3px;
+    color: var(--accent); text-transform: uppercase;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 8px;
+  }
+
+  /* SMART CONTRACT CARD */
+  .contract-card {
+    background: rgba(0,212,255,0.04);
+    border: 1px solid rgba(0,212,255,0.15);
+    border-radius: 6px;
+    padding: 14px;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 11px;
+  }
+  .contract-card .label { color: #5a8fa8; margin-bottom: 4px; font-size: 10px; letter-spacing: 1px; }
+  .contract-card .value { color: var(--accent); word-break: break-all; line-height: 1.5; }
+  .contract-card .value.address { font-size: 9px; }
+  .contract-card .value.highlight { color: var(--gold); font-size: 16px; font-family: 'Orbitron',monospace; }
+
+  .stake-form { display: flex; flex-direction: column; gap: 8px; }
+  .stake-input {
+    background: rgba(0,0,0,0.4);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 8px 12px;
+    color: var(--accent);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 13px;
+    width: 100%;
+    outline: none;
+    transition: border-color 0.3s;
+  }
+  .stake-input:focus { border-color: var(--accent); box-shadow: var(--glow); }
+
+  .btn {
+    padding: 10px 16px;
+    border: 1px solid;
+    border-radius: 4px;
+    font-family: 'Orbitron', monospace;
+    font-size: 10px;
+    letter-spacing: 2px;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-transform: uppercase;
+  }
+  .btn-primary {
+    background: rgba(0,212,255,0.1);
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+  .btn-primary:hover { background: rgba(0,212,255,0.2); box-shadow: var(--glow); }
+  .btn-danger {
+    background: rgba(255,107,53,0.1);
+    border-color: var(--accent2);
+    color: var(--accent2);
+  }
+  .btn-danger:hover { background: rgba(255,107,53,0.2); box-shadow: var(--glow2); }
+  .btn-success {
+    background: rgba(57,255,20,0.1);
+    border-color: var(--accent3);
+    color: var(--accent3);
+  }
+
+  /* TX LOG */
+  .tx-log {
+    flex: 1; overflow-y: auto;
+    display: flex; flex-direction: column; gap: 6px;
+    max-height: 320px;
+  }
+  .tx-log::-webkit-scrollbar { width: 4px; }
+  .tx-log::-webkit-scrollbar-track { background: transparent; }
+  .tx-log::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  .tx-item {
+    background: rgba(0,0,0,0.3);
+    border: 1px solid rgba(0,212,255,0.08);
+    border-radius: 4px;
+    padding: 8px 10px;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 10px;
+    animation: fadeIn 0.4s ease;
+  }
+  @keyframes fadeIn { from{opacity:0;transform:translateY(-6px)} to{opacity:1;transform:none} }
+  .tx-item .tx-hash { color: var(--accent3); }
+  .tx-item .tx-action { color: #cce8f4; margin: 2px 0; }
+  .tx-item .tx-time { color: #3a6a8a; font-size: 9px; }
+  .tx-item.confirmed { border-color: rgba(57,255,20,0.2); }
+  .tx-item.pending { border-color: rgba(255,215,0,0.2); }
+  .tx-item.pending .tx-hash { color: var(--gold); }
+
+  /* CENTER - CHESS AREA */
+  .center-area {
+    display: flex; flex-direction: column; align-items: center;
+    justify-content: flex-start;
+    padding: 24px 20px;
+    gap: 16px;
+  }
+
+  .game-meta {
+    display: flex; gap: 20px; width: 100%;
+    justify-content: center;
+  }
+  .player-badge {
+    flex: 1; max-width: 200px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 12px 16px;
+    display: flex; align-items: center; gap: 12px;
+  }
+  .player-badge.active { border-color: var(--accent); box-shadow: var(--glow); }
+  .player-badge.black-player.active { border-color: var(--accent2); box-shadow: var(--glow2); }
+  .piece-icon {
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px;
+  }
+  .piece-icon.white { background: rgba(232,244,248,0.1); }
+  .piece-icon.black { background: rgba(10,37,53,0.5); }
+  .player-info { flex: 1; }
+  .player-name { font-family: 'Orbitron',monospace; font-size: 11px; color: #cce8f4; letter-spacing: 1px; }
+  .player-addr { font-family: 'Share Tech Mono',monospace; font-size: 9px; color: #5a8fa8; }
+  .timer {
+    font-family: 'Orbitron',monospace; font-size: 20px;
+    color: var(--accent); text-shadow: var(--glow);
+  }
+  .timer.warning { color: var(--accent2); text-shadow: var(--glow2); animation: blink 1s infinite; }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.5} }
+
+  /* CHESS BOARD */
+  .board-wrapper {
+    position: relative;
+  }
+  .board-coords-top, .board-coords-bottom {
+    display: flex; padding: 0 24px;
+  }
+  .board-coords-left, .board-coords-right {
+    display: flex; flex-direction: column; justify-content: space-around;
+    width: 24px; align-items: center;
+  }
+  .coord-label {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 11px; color: #3a6a8a;
+    width: 48px; text-align: center;
+  }
+  .coord-label.side { width: 24px; height: 48px; line-height: 48px; }
+  .board-inner { display: flex; }
+
+  #chessboard {
+    display: grid;
+    grid-template-columns: repeat(8, 56px);
+    grid-template-rows: repeat(8, 56px);
+    border: 2px solid var(--border);
+    box-shadow: 0 0 40px rgba(0,212,255,0.15), 0 0 80px rgba(0,0,0,0.8);
+  }
+
+  .square {
+    width: 56px; height: 56px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    position: relative;
+    transition: all 0.15s;
+    font-size: 32px;
+    user-select: none;
+  }
+  .square.light { background: var(--white-sq); }
+  .square.dark { background: var(--black-sq); }
+  .square:hover { filter: brightness(1.3); }
+  .square.selected {
+    background: rgba(0,212,255,0.3) !important;
+    box-shadow: inset 0 0 12px rgba(0,212,255,0.5);
+  }
+  .square.possible-move::after {
+    content: '';
+    position: absolute;
+    width: 18px; height: 18px;
+    border-radius: 50%;
+    background: rgba(0,212,255,0.4);
+    border: 2px solid rgba(0,212,255,0.6);
+  }
+  .square.possible-capture {
+    box-shadow: inset 0 0 16px rgba(255,107,53,0.5);
+    background: rgba(255,107,53,0.15) !important;
+  }
+  .square.last-move { background: rgba(255,215,0,0.12) !important; }
+  .square.check { background: rgba(255,50,50,0.3) !important; animation: checkPulse 1s infinite; }
+  @keyframes checkPulse { 0%,100%{box-shadow:inset 0 0 16px rgba(255,50,50,0.6)} 50%{box-shadow:inset 0 0 30px rgba(255,50,50,0.9)} }
+
+  /* Piece styling */
+  .piece-white { filter: drop-shadow(0 0 6px rgba(0,212,255,0.6)) brightness(1.2); }
+  .piece-black { filter: drop-shadow(0 0 6px rgba(255,107,53,0.4)) brightness(0.85); }
+
+  /* GAME STATUS BAR */
+  .status-bar {
+    width: 100%;
+    max-width: 448px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 10px 16px;
+    display: flex; align-items: center; gap: 12px;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 12px;
+  }
+  .status-indicator { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .status-text { color: #cce8f4; flex: 1; }
+  .move-counter { color: #5a8fa8; font-size: 10px; }
+
+  /* MOVE HISTORY */
+  .move-history {
+    width: 100%; max-width: 448px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 12px;
+    max-height: 100px;
+    overflow-y: auto;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 11px;
+    display: flex; flex-wrap: wrap; gap: 4px;
+  }
+  .move-history::-webkit-scrollbar { height: 4px; }
+  .move-entry { color: #cce8f4; padding: 2px 6px; background: rgba(0,0,0,0.3); border-radius: 3px; }
+  .move-entry .move-num { color: #5a8fa8; }
+
+  /* GAME CONTROL BUTTONS */
+  .game-controls { display: flex; gap: 10px; }
+
+  /* MODAL */
+  .modal-overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(5,10,15,0.9);
+    z-index: 200; align-items: center; justify-content: center;
+    backdrop-filter: blur(6px);
+  }
+  .modal-overlay.show { display: flex; }
+  .modal {
+    background: var(--panel);
+    border: 1px solid var(--accent);
+    border-radius: 8px;
+    padding: 32px;
+    max-width: 420px; width: 90%;
+    box-shadow: var(--glow), 0 0 80px rgba(0,0,0,0.9);
+    text-align: center;
+  }
+  .modal h2 {
+    font-family: 'Orbitron', monospace;
+    font-size: 20px; color: var(--gold);
+    margin-bottom: 12px;
+    text-shadow: 0 0 20px rgba(255,215,0,0.5);
+  }
+  .modal p { color: #8ab4cc; margin-bottom: 20px; font-size: 14px; line-height: 1.6; }
+  .modal .contract-detail {
+    background: rgba(0,0,0,0.4);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 12px;
+    margin-bottom: 20px;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 11px;
+    text-align: left;
+  }
+  .modal .contract-detail .row { display: flex; justify-content: space-between; margin-bottom: 6px; }
+  .modal .contract-detail .key { color: #5a8fa8; }
+  .modal .contract-detail .val { color: var(--accent3); }
+
+  /* PROMOTION MODAL */
+  .promo-options { display: flex; justify-content: center; gap: 16px; margin: 16px 0; }
+  .promo-option {
+    width: 64px; height: 64px;
+    background: rgba(0,212,255,0.08);
+    border: 2px solid var(--border);
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 40px; cursor: pointer;
+    transition: all 0.2s;
+  }
+  .promo-option:hover { border-color: var(--accent); box-shadow: var(--glow); background: rgba(0,212,255,0.15); transform: scale(1.1); }
+
+  /* BLOCKCHAIN STATS */
+  .stat-row { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid rgba(15,58,90,0.5); }
+  .stat-row:last-child { border-bottom: none; }
+  .stat-key { font-size: 11px; color: #5a8fa8; }
+  .stat-val { font-family: 'Share Tech Mono', monospace; font-size: 12px; color: var(--accent); }
+
+  /* HASH DISPLAY */
+  .hash-display {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 9px; color: #3a6a8a;
+    word-break: break-all;
+    line-height: 1.6;
+    margin-top: 4px;
+  }
+
+  /* Captued pieces */
+  .captured-pieces { min-height: 28px; display: flex; flex-wrap: wrap; gap: 2px; font-size: 18px; }
+
+  /* Network indicator */
+  .network-badge {
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 10px;
+    background: rgba(57,255,20,0.1);
+    border: 1px solid rgba(57,255,20,0.3);
+    color: var(--accent3);
+  }
+
+  @media (max-width: 900px) {
+    .main-container { grid-template-columns: 1fr; }
+    .side-panel { display: none; }
+    .center-area { padding: 16px 8px; }
+    #chessboard { grid-template-columns: repeat(8, 44px); grid-template-rows: repeat(8, 44px); }
+    .square { width: 44px; height: 44px; font-size: 26px; }
+    .coord-label { width: 44px; }
+    .coord-label.side { height: 44px; line-height: 44px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">CHAIN<span>MATE</span></div>
+  <div style="display:flex;align-items:center;gap:16px">
+    <div class="network-badge">OPNET TESTNET</div>
+    <div class="chain-status">
+      <div class="dot"></div>
+      <span id="blockNum">BLOCK #1,847,293</span>
+    </div>
+  </div>
+  <div class="block-info" id="gasPrice">GAS: 2.4 GWEI</div>
+</header>
+
+<div class="main-container">
+
+  <!-- LEFT PANEL: Smart Contract Info -->
+  <div class="side-panel">
+    <div class="panel-title">⬡ Smart Contract</div>
+
+    <div class="contract-card">
+      <div class="label">CONTRACT ADDRESS</div>
+      <div class="value address" id="contractAddr">0x7f3a...b924c1</div>
+    </div>
+
+    <div class="contract-card">
+      <div class="label">GAME ID</div>
+      <div class="value" id="gameId">GAME_0x4f2a</div>
+    </div>
+
+    <div class="contract-card">
+      <div class="label">PRIZE POOL (BTC)</div>
+      <div class="value highlight" id="prizePool">0.020</div>
+    </div>
+
+    <div class="panel-title" style="margin-top:8px">⬡ Stake BTC</div>
+
+    <div class="stake-form">
+      <div class="contract-card" style="padding:10px">
+        <div class="label">YOUR WALLET</div>
+        <div class="value address">0x9b2f...3e881a</div>
+        <div class="label" style="margin-top:8px">BALANCE</div>
+        <div class="value" id="balance">0.542 BTC</div>
+      </div>
+      <input class="stake-input" type="number" id="stakeAmount" placeholder="0.010" step="0.001" min="0.001" value="0.010">
+      <button class="btn btn-primary" onclick="deployContract()">⬡ DEPLOY CONTRACT</button>
+      <button class="btn btn-danger" onclick="resignGame()">✗ RESIGN GAME</button>
+    </div>
+
+    <div class="panel-title" style="margin-top:8px">⬡ Chain Stats</div>
+    <div>
+      <div class="stat-row"><span class="stat-key">Network</span><span class="stat-val">OPNET L2</span></div>
+      <div class="stat-row"><span class="stat-key">TPS</span><span class="stat-val" id="tps">847</span></div>
+      <div class="stat-row"><span class="stat-key">Finality</span><span class="stat-val">~2s</span></div>
+      <div class="stat-row"><span class="stat-key">Moves on chain</span><span class="stat-val" id="onchainMoves">0</span></div>
+      <div class="stat-row"><span class="stat-key">Contract State</span><span class="stat-val" id="contractState" style="color:var(--gold)">PENDING</span></div>
+    </div>
+  </div>
+
+  <!-- CENTER: Chess Board -->
+  <div class="center-area">
+    <div class="game-meta">
+      <!-- Black player (top) -->
+      <div class="player-badge black-player" id="blackBadge">
+        <div class="piece-icon black">♚</div>
+        <div class="player-info">
+          <div class="player-name">PLAYER II</div>
+          <div class="player-addr">0x4d7b...f912</div>
+        </div>
+        <div class="timer" id="timerBlack">10:00</div>
+      </div>
+      <!-- White player (bottom) -->
+      <div class="player-badge active" id="whiteBadge">
+        <div class="piece-icon white">♔</div>
+        <div class="player-info">
+          <div class="player-name">PLAYER I</div>
+          <div class="player-addr">0x9b2f...3e88</div>
+        </div>
+        <div class="timer" id="timerWhite">10:00</div>
+      </div>
+    </div>
+
+    <!-- Captured Black Pieces -->
+    <div class="captured-pieces" id="capturedByWhite"></div>
+
+    <!-- Board with coordinates -->
+    <div class="board-wrapper">
+      <div style="display:flex">
+        <div class="board-coords-left" id="coordsLeft"></div>
+        <div>
+          <div class="board-coords-top" id="coordsTop"></div>
+          <div class="board-inner">
+            <div id="chessboard"></div>
+          </div>
+          <div class="board-coords-bottom" id="coordsBottom"></div>
+        </div>
+        <div class="board-coords-right" id="coordsRight"></div>
+      </div>
+    </div>
+
+    <!-- Captured White Pieces -->
+    <div class="captured-pieces" id="capturedByBlack"></div>
+
+    <!-- Status Bar -->
+    <div class="status-bar">
+      <div class="status-indicator" id="statusDot" style="background:var(--accent)"></div>
+      <div class="status-text" id="statusText">White to move — Deploy contract to start</div>
+      <div class="move-counter" id="moveCounter">MOVE 1</div>
+    </div>
+
+    <!-- Move History -->
+    <div class="move-history" id="moveHistory">
+      <span style="color:#3a6a8a;font-size:10px;">No moves yet...</span>
+    </div>
+
+    <!-- Controls -->
+    <div class="game-controls">
+      <button class="btn btn-primary" onclick="newGame()">⟳ NEW GAME</button>
+      <button class="btn btn-success" onclick="offerDraw()">= OFFER DRAW</button>
+      <button class="btn" style="border-color:#5a8fa8;color:#5a8fa8;" onclick="flipBoard()">↕ FLIP</button>
+    </div>
+
+    <!-- Last Move Hash -->
+    <div class="hash-display" id="lastMoveHash">Waiting for first move...</div>
+  </div>
+
+  <!-- RIGHT PANEL: TX Log -->
+  <div class="side-panel right">
+    <div class="panel-title">⬡ Transaction Log</div>
+    <div class="tx-log" id="txLog">
+      <div style="color:#3a6a8a;font-size:11px;font-family:'Share Tech Mono',monospace;text-align:center;padding:20px 0">
+        No transactions yet
+      </div>
+    </div>
+
+    <div class="panel-title" style="margin-top:8px">⬡ Move Encoding</div>
+    <div class="contract-card">
+      <div class="label">LAST MOVE TX DATA</div>
+      <div class="value address" id="moveTxData">—</div>
+    </div>
+    <div class="contract-card">
+      <div class="label">MERKLE PROOF</div>
+      <div class="value address" id="merkleProof">—</div>
+    </div>
+    <div class="contract-card">
+      <div class="label">BOARD HASH</div>
+      <div class="value address" id="boardHash">—</div>
+    </div>
+
+    <div class="panel-title" style="margin-top:8px">⬡ Smart Contract ABI</div>
+    <div style="background:rgba(0,0,0,0.5);border:1px solid var(--border);border-radius:4px;padding:10px;font-family:'Share Tech Mono',monospace;font-size:9px;color:#3a6a8a;line-height:1.8;max-height:160px;overflow-y:auto;">
+      <div style="color:var(--accent)">function makeMove(</div>
+      <div>&nbsp;&nbsp;bytes32 gameId,</div>
+      <div>&nbsp;&nbsp;uint8 fromSq,</div>
+      <div>&nbsp;&nbsp;uint8 toSq,</div>
+      <div>&nbsp;&nbsp;bytes signature</div>
+      <div style="color:var(--accent)">)</div>
+      <div style="color:var(--accent);margin-top:4px">function claimVictory(</div>
+      <div>&nbsp;&nbsp;bytes32 gameId,</div>
+      <div>&nbsp;&nbsp;address winner</div>
+      <div style="color:var(--accent)">)</div>
+      <div style="color:var(--accent);margin-top:4px">function stakeAndJoin(</div>
+      <div>&nbsp;&nbsp;bytes32 gameId,</div>
+      <div>&nbsp;&nbsp;uint256 amount</div>
+      <div style="color:var(--accent)">)</div>
+    </div>
+  </div>
+</div>
+
+<!-- DEPLOY CONTRACT MODAL -->
+<div class="modal-overlay" id="deployModal">
+  <div class="modal">
+    <h2>⬡ DEPLOY GAME CONTRACT</h2>
+    <p>A smart contract will be deployed on OPNET L2 to handle this chess match. Both players must stake BTC to proceed.</p>
+    <div class="contract-detail">
+      <div class="row"><span class="key">Your Stake</span><span class="val" id="modalStake">0.010 BTC</span></div>
+      <div class="row"><span class="key">Opponent Stake</span><span class="val">0.010 BTC</span></div>
+      <div class="row"><span class="key">Prize Pool</span><span class="val" id="modalPool">0.020 BTC</span></div>
+      <div class="row"><span class="key">Gas Fee (est.)</span><span class="val">~0.00012 BTC</span></div>
+      <div class="row"><span class="key">Network</span><span class="val">OPNET L2</span></div>
+      <div class="row"><span class="key">Time Control</span><span class="val">10 min + 5s</span></div>
+    </div>
+    <div style="display:flex;gap:10px">
+      <button class="btn btn-primary" style="flex:1" onclick="confirmDeploy()">⬡ CONFIRM & DEPLOY</button>
+      <button class="btn btn-danger" onclick="closeModal('deployModal')">✗ CANCEL</button>
+    </div>
+  </div>
+</div>
+
+<!-- PROMOTION MODAL -->
+<div class="modal-overlay" id="promoModal">
+  <div class="modal">
+    <h2>PAWN PROMOTION</h2>
+    <p>Choose a piece to promote your pawn to.</p>
+    <div class="promo-options" id="promoOptions"></div>
+  </div>
+</div>
+
+<!-- GAME OVER MODAL -->
+<div class="modal-overlay" id="gameOverModal">
+  <div class="modal">
+    <h2 id="gameOverTitle">CHECKMATE!</h2>
+    <p id="gameOverDesc">White wins the game!</p>
+    <div class="contract-detail" id="payoutDetail">
+      <div class="row"><span class="key">Winner</span><span class="val" id="winnerAddr">0x9b2f...3e88</span></div>
+      <div class="row"><span class="key">Payout</span><span class="val" id="payoutAmount">0.020 BTC</span></div>
+      <div class="row"><span class="key">TX Hash</span><span class="val" id="payoutTx">0xabc...def</span></div>
+      <div class="row"><span class="key">Status</span><span class="val" style="color:var(--accent3)">CONFIRMED ✓</span></div>
+    </div>
+    <button class="btn btn-primary" style="width:100%" onclick="closeModal('gameOverModal');newGame()">⟳ PLAY AGAIN</button>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// CHESS ENGINE
+// ============================================================
+
+const PIECES = {
+  wK: '♔', wQ: '♕', wR: '♖', wB: '♗', wN: '♘', wP: '♙',
+  bK: '♚', bQ: '♛', bR: '♜', bB: '♝', bN: '♞', bP: '♟'
+};
+
+const INIT_BOARD = [
+  ['bR','bN','bB','bQ','bK','bB','bN','bR'],
+  ['bP','bP','bP','bP','bP','bP','bP','bP'],
+  [null,null,null,null,null,null,null,null],
+  [null,null,null,null,null,null,null,null],
+  [null,null,null,null,null,null,null,null],
+  [null,null,null,null,null,null,null,null],
+  ['wP','wP','wP','wP','wP','wP','wP','wP'],
+  ['wR','wN','wB','wQ','wK','wB','wN','wR']
+];
+
+let board, turn, selected, possibleMoves, moveHistory, capturedW, capturedB;
+let lastMove, flipped, gameActive, contractDeployed;
+let timerW, timerB, timerInterval;
+let enPassantTarget, castlingRights;
+
+function initGame() {
+  board = INIT_BOARD.map(r => [...r]);
+  turn = 'w';
+  selected = null;
+  possibleMoves = [];
+  moveHistory = [];
+  capturedW = [];
+  capturedB = [];
+  lastMove = null;
+  gameActive = false;
+  enPassantTarget = null;
+  castlingRights = { wK: true, wQR: true, wKR: true, bK: true, bQR: true, bKR: true };
+  timerW = 600; timerB = 600;
+  clearInterval(timerInterval);
+  renderBoard();
+  updateTimers();
+  document.getElementById('moveHistory').innerHTML = '<span style="color:#3a6a8a;font-size:10px;">No moves yet...</span>';
+  document.getElementById('capturedByWhite').innerHTML = '';
+  document.getElementById('capturedByBlack').innerHTML = '';
+  document.getElementById('onchainMoves').textContent = '0';
+  updateStatus('White to move — Deploy contract to start', 'accent');
+}
+
+function newGame() {
+  closeModal('gameOverModal');
+  contractDeployed = false;
+  document.getElementById('contractState').textContent = 'PENDING';
+  document.getElementById('contractState').style.color = 'var(--gold)';
+  initGame();
+}
+
+function getColor(p) { return p ? p[0] : null; }
+
+function isEnemy(p, c) { return p && getColor(p) !== c; }
+
+function inBounds(r, c) { return r >= 0 && r < 8 && c >= 0 && c < 8; }
+
+function getPossibleMoves(row, col, b, ep, cr, skipKingSafety) {
+  const piece = b[row][col];
+  if (!piece) return [];
+  const color = piece[0];
+  const type = piece[1];
+  const moves = [];
+  const opp = color === 'w' ? 'b' : 'w';
+
+  const addMove = (r, c, special) => {
+    if (!inBounds(r, c)) return false;
+    if (getColor(b[r][c]) === color) return false;
+    moves.push({ r, c, special });
+    return !b[r][c];
+  };
+
+  const slide = (dr, dc) => {
+    let r = row + dr, c = col + dc;
+    while (inBounds(r, c)) {
+      if (getColor(b[r][c]) === color) break;
+      moves.push({ r, c });
+      if (b[r][c]) break;
+      r += dr; c += dc;
+    }
+  };
+
+  if (type === 'P') {
+    const dir = color === 'w' ? -1 : 1;
+    const startRow = color === 'w' ? 6 : 1;
+    if (inBounds(row+dir, col) && !b[row+dir][col]) {
+      moves.push({ r: row+dir, c: col });
+      if (row === startRow && !b[row+2*dir][col]) moves.push({ r: row+2*dir, c: col });
+    }
+    for (const dc of [-1, 1]) {
+      if (inBounds(row+dir, col+dc)) {
+        if (isEnemy(b[row+dir][col+dc], color)) moves.push({ r: row+dir, c: col+dc });
+        else if (ep && ep.r === row+dir && ep.c === col+dc) moves.push({ r: row+dir, c: col+dc, special: 'ep' });
+      }
+    }
+  } else if (type === 'R') {
+    for (const [dr,dc] of [[0,1],[0,-1],[1,0],[-1,0]]) slide(dr,dc);
+  } else if (type === 'B') {
+    for (const [dr,dc] of [[1,1],[1,-1],[-1,1],[-1,-1]]) slide(dr,dc);
+  } else if (type === 'Q') {
+    for (const [dr,dc] of [[0,1],[0,-1],[1,0],[-1,0],[1,1],[1,-1],[-1,1],[-1,-1]]) slide(dr,dc);
+  } else if (type === 'N') {
+    for (const [dr,dc] of [[-2,-1],[-2,1],[-1,-2],[-1,2],[1,-2],[1,2],[2,-1],[2,1]]) addMove(row+dr, col+dc);
+  } else if (type === 'K') {
+    for (const [dr,dc] of [[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]]) addMove(row+dr, col+dc);
+    if (!skipKingSafety) {
+      const r = color === 'w' ? 7 : 0;
+      if (row === r && col === 4) {
+        if (cr[color+'KR'] && !b[r][5] && !b[r][6] && b[r][7]?.endsWith('R')) {
+          if (!isSquareAttacked(r,4,opp,b,ep,cr) && !isSquareAttacked(r,5,opp,b,ep,cr) && !isSquareAttacked(r,6,opp,b,ep,cr))
+            moves.push({ r, c: 6, special: 'castleK' });
+        }
+        if (cr[color+'QR'] && !b[r][3] && !b[r][2] && !b[r][1] && b[r][0]?.endsWith('R')) {
+          if (!isSquareAttacked(r,4,opp,b,ep,cr) && !isSquareAttacked(r,3,opp,b,ep,cr) && !isSquareAttacked(r,2,opp,b,ep,cr))
+            moves.push({ r, c: 2, special: 'castleQ' });
+        }
+      }
+    }
+  }
+
+  if (!skipKingSafety) {
+    return moves.filter(m => {
+      const nb = b.map(r => [...r]);
+      nb[m.r][m.c] = nb[row][col];
+      nb[row][col] = null;
+      if (m.special === 'ep') nb[row][m.c] = null;
+      return !isInCheck(color, nb, null, {});
+    });
+  }
+  return moves;
+}
+
+function isSquareAttacked(r, c, byColor, b, ep, cr) {
+  for (let rr = 0; rr < 8; rr++) for (let cc = 0; cc < 8; cc++) {
+    if (getColor(b[rr][cc]) === byColor) {
+      const mvs = getPossibleMoves(rr, cc, b, ep, cr, true);
+      if (mvs.some(m => m.r === r && m.c === c)) return true;
+    }
+  }
+  return false;
+}
+
+function isInCheck(color, b, ep, cr) {
+  for (let r = 0; r < 8; r++) for (let c = 0; c < 8; c++)
+    if (b[r][c] === color + 'K') return isSquareAttacked(r, c, color === 'w' ? 'b' : 'w', b, ep, cr);
+  return false;
+}
+
+function hasLegalMoves(color, b, ep, cr) {
+  for (let r = 0; r < 8; r++) for (let c = 0; c < 8; c++)
+    if (getColor(b[r][c]) === color && getPossibleMoves(r, c, b, ep, cr).length > 0) return true;
+  return false;
+}
+
+let boardFlipped = false;
+function flipBoard() { boardFlipped = !boardFlipped; renderBoard(); }
+
+function renderBoard() {
+  const el = document.getElementById('chessboard');
+  el.innerHTML = '';
+
+  // Coords
+  const files = ['a','b','c','d','e','f','g','h'];
+  const ranks = ['8','7','6','5','4','3','2','1'];
+  const dispFiles = boardFlipped ? [...files].reverse() : files;
+  const dispRanks = boardFlipped ? [...ranks].reverse() : ranks;
+
+  document.getElementById('coordsTop').innerHTML = dispFiles.map(f=>`<div class="coord-label">${f}</div>`).join('');
+  document.getElementById('coordsBottom').innerHTML = dispFiles.map(f=>`<div class="coord-label">${f}</div>`).join('');
+  document.getElementById('coordsLeft').innerHTML = dispRanks.map(r=>`<div class="coord-label side">${r}</div>`).join('');
+  document.getElementById('coordsRight').innerHTML = dispRanks.map(r=>`<div class="coord-label side">${r}</div>`).join('');
+
+  for (let di = 0; di < 8; di++) {
+    for (let dj = 0; dj < 8; dj++) {
+      const i = boardFlipped ? 7-di : di;
+      const j = boardFlipped ? 7-dj : dj;
+      const sq = document.createElement('div');
+      sq.className = 'square ' + ((i+j)%2===0?'light':'dark');
+      sq.dataset.row = i; sq.dataset.col = j;
+
+      if (lastMove && ((lastMove.fr===i&&lastMove.fc===j)||(lastMove.tr===i&&lastMove.tc===j))) sq.classList.add('last-move');
+      if (selected && selected.row===i && selected.col===j) sq.classList.add('selected');
+      if (possibleMoves.some(m=>m.r===i&&m.c===j)) {
+        if (board[i][j] && getColor(board[i][j]) !== turn) sq.classList.add('possible-capture');
+        else sq.classList.add('possible-move');
+      }
+
+      const piece = board[i][j];
+      if (piece) {
+        const span = document.createElement('span');
+        span.textContent = PIECES[piece];
+        span.className = piece[0]==='w' ? 'piece-white' : 'piece-black';
+        sq.appendChild(span);
+        // Check indicator
+        if (piece[1]==='K' && isInCheck(piece[0], board, enPassantTarget, castlingRights)) sq.classList.add('check');
+      }
+
+      sq.addEventListener('click', () => handleSquareClick(i, j));
+      el.appendChild(sq);
+    }
+  }
+}
+
+let pendingPromotion = null;
+
+function handleSquareClick(r, c) {
+  if (!gameActive) {
+    addTx('WARNING', 'Deploy smart contract first!', 'pending');
+    return;
+  }
+
+  const piece = board[r][c];
+
+  if (selected) {
+    const mv = possibleMoves.find(m => m.r===r && m.c===c);
+    if (mv) {
+      // Pawn promotion
+      if (board[selected.row][selected.col]?.[1]==='P' && (r===0||r===7)) {
+        pendingPromotion = { fr: selected.row, fc: selected.col, tr: r, tc: c, special: mv.special };
+        showPromotion();
+        return;
+      }
+      executeMove(selected.row, selected.col, r, c, mv.special);
+      selected = null; possibleMoves = [];
+      renderBoard(); return;
+    }
+    if (getColor(piece) === turn) {
+      selected = { row: r, col: c };
+      possibleMoves = getPossibleMoves(r, c, board, enPassantTarget, castlingRights);
+      renderBoard(); return;
+    }
+    selected = null; possibleMoves = [];
+    renderBoard(); return;
+  }
+
+  if (getColor(piece) === turn) {
+    selected = { row: r, col: c };
+    possibleMoves = getPossibleMoves(r, c, board, enPassantTarget, castlingRights);
+    renderBoard();
+  }
+}
+
+function executeMove(fr, fc, tr, tc, special, promoType) {
+  const piece = board[fr][fc];
+  const captured = board[tr][tc];
+
+  if (captured) {
+    if (turn === 'w') capturedB.push(captured);
+    else capturedW.push(captured);
+  }
+
+  board[tr][tc] = promoType ? turn + promoType : piece;
+  board[fr][fc] = null;
+
+  if (special === 'ep') {
+    board[fr][tc] = null;
+    if (turn === 'w') capturedB.push(turn==='w'?'bP':'wP');
+    else capturedW.push('wP');
+  }
+  if (special === 'castleK') {
+    const r = turn === 'w' ? 7 : 0;
+    board[r][5] = turn + 'R'; board[r][7] = null;
+  }
+  if (special === 'castleQ') {
+    const r = turn === 'w' ? 7 : 0;
+    board[r][3] = turn + 'R'; board[r][0] = null;
+  }
+
+  // Update castling rights
+  if (piece === 'wK') { castlingRights.wKR = false; castlingRights.wQR = false; }
+  if (piece === 'bK') { castlingRights.bKR = false; castlingRights.bQR = false; }
+  if (fr===7&&fc===0||tr===7&&tc===0) castlingRights.wQR = false;
+  if (fr===7&&fc===7||tr===7&&tc===7) castlingRights.wKR = false;
+  if (fr===0&&fc===0||tr===0&&tc===0) castlingRights.bQR = false;
+  if (fr===0&&fc===7||tr===0&&tc===7) castlingRights.bKR = false;
+
+  // En passant target
+  enPassantTarget = null;
+  if (piece?.[1]==='P' && Math.abs(tr-fr)===2)
+    enPassantTarget = { r: (fr+tr)/2, c: fc };
+
+  lastMove = { fr, fc, tr, tc };
+  const moveNotation = getMoveNotation(piece, fr, fc, tr, tc, captured, special, promoType);
+  moveHistory.push({ notation: moveNotation, color: turn });
+
+  // Blockchain stuff
+  const moveNum = moveHistory.length;
+  const txHash = generateHash();
+  addTx(moveNotation, `Move #${moveNum}: ${['a','b','c','d','e','f','g','h'][fc]}${8-fr} → ${['a','b','c','d','e','f','g','h'][tc]}${8-tr}`, 'confirmed', txHash);
+  document.getElementById('moveTxData').textContent = `0x${btoa(fr+','+fc+','+tr+','+tc).slice(0,20)}...`;
+  document.getElementById('merkleProof').textContent = `0x${generateHash().slice(0,22)}...`;
+  document.getElementById('boardHash').textContent = `0x${generateHash().slice(0,22)}...`;
+  document.getElementById('lastMoveHash').textContent = `TX: ${txHash}`;
+  document.getElementById('onchainMoves').textContent = moveNum;
+
+  turn = turn === 'w' ? 'b' : 'w';
+  updateCaptured();
+  updateMoveHistory();
+
+  const nextColor = turn;
+  const opp = nextColor === 'w' ? 'b' : 'w';
+
+  if (isInCheck(nextColor, board, enPassantTarget, castlingRights)) {
+    if (!hasLegalMoves(nextColor, board, enPassantTarget, castlingRights)) {
+      updateStatus(`Checkmate! ${opp==='w'?'White':'Black'} wins! ♛`, 'gold');
+      gameActive = false;
+      clearInterval(timerInterval);
+      setTimeout(() => showGameOver(opp), 1200);
+      return;
+    }
+    updateStatus(`${nextColor==='w'?'White':'Black'} is in CHECK! ${nextColor==='w'?'White':'Black'} to move`, 'danger');
+  } else if (!hasLegalMoves(nextColor, board, enPassantTarget, castlingRights)) {
+    updateStatus("Stalemate! Draw!", 'accent');
+    gameActive = false; clearInterval(timerInterval);
+    return;
+  } else {
+    updateStatus(`${nextColor==='w'?'White':'Black'} to move`, 'accent');
+  }
+
+  updatePlayerBadges();
+  renderBoard();
+}
+
+function getMoveNotation(piece, fr, fc, tr, tc, captured, special, promo) {
+  const files = 'abcdefgh';
+  if (special==='castleK') return 'O-O';
+  if (special==='castleQ') return 'O-O-O';
+  let n = piece[1]==='P' ? '' : piece[1];
+  if (captured||special==='ep') { if(piece[1]==='P') n+=files[fc]; n+='x'; }
+  n += files[tc]+(8-tr);
+  if (promo) n += '='+promo;
+  return n;
+}
+
+function showPromotion() {
+  const color = turn;
+  const opts = [['Q','♛','♕'],['R','♜','♖'],['B','♝','♗'],['N','♞','♘']];
+  const container = document.getElementById('promoOptions');
+  container.innerHTML = '';
+  opts.forEach(([t, bs, ws]) => {
+    const d = document.createElement('div');
+    d.className = 'promo-option';
+    d.textContent = color==='w' ? ws : bs;
+    d.onclick = () => {
+      const p = pendingPromotion;
+      executeMove(p.fr, p.fc, p.tr, p.tc, p.special, t);
+      selected = null; possibleMoves = [];
+      closeModal('promoModal');
+      renderBoard();
+      pendingPromotion = null;
+    };
+    container.appendChild(d);
+  });
+  document.getElementById('promoModal').classList.add('show');
+}
+
+function updateCaptured() {
+  document.getElementById('capturedByWhite').innerHTML = capturedB.map(p => `<span class="piece-white">${PIECES[p]}</span>`).join('');
+  document.getElementById('capturedByBlack').innerHTML = capturedW.map(p => `<span class="piece-black">${PIECES[p]}</span>`).join('');
+}
+
+function updateMoveHistory() {
+  const el = document.getElementById('moveHistory');
+  if (!moveHistory.length) { el.innerHTML = '<span style="color:#3a6a8a;font-size:10px;">No moves yet...</span>'; return; }
+  let html = '';
+  for (let i = 0; i < moveHistory.length; i += 2) {
+    const wm = moveHistory[i];
+    const bm = moveHistory[i+1];
+    html += `<span class="move-entry"><span class="move-num">${i/2+1}.</span> ${wm.notation}${bm?' '+bm.notation:''}</span>`;
+  }
+  el.innerHTML = html;
+  el.scrollLeft = el.scrollWidth;
+}
+
+function updateStatus(text, type) {
+  document.getElementById('statusText').textContent = text;
+  const colors = { accent: 'var(--accent)', danger: 'rgba(255,50,50,1)', gold: 'var(--gold)' };
+  document.getElementById('statusDot').style.background = colors[type] || 'var(--accent)';
+  document.getElementById('moveCounter').textContent = `MOVE ${Math.ceil(moveHistory.length/2)+1}`;
+}
+
+function updatePlayerBadges() {
+  document.getElementById('whiteBadge').classList.toggle('active', turn==='w');
+  document.getElementById('blackBadge').classList.toggle('active', turn==='b');
+}
+
+// ============================================================
+// TIMER
+// ============================================================
+function startTimer() {
+  clearInterval(timerInterval);
+  timerInterval = setInterval(() => {
+    if (!gameActive) return;
+    if (turn === 'w') { timerW = Math.max(0, timerW-1); if(timerW===0){timeOut('w');return;} }
+    else { timerB = Math.max(0, timerB-1); if(timerB===0){timeOut('b');return;} }
+    updateTimers();
+  }, 1000);
+}
+
+function timeOut(color) {
+  gameActive = false; clearInterval(timerInterval);
+  const winner = color==='w'?'b':'w';
+  updateStatus(`${color==='w'?'White':'Black'} ran out of time! ${winner==='w'?'White':'Black'} wins!`, 'gold');
+  setTimeout(() => showGameOver(winner), 800);
+}
+
+function updateTimers() {
+  const fmt = s => `${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`;
+  const wEl = document.getElementById('timerWhite');
+  const bEl = document.getElementById('timerBlack');
+  wEl.textContent = fmt(timerW);
+  bEl.textContent = fmt(timerB);
+  wEl.className = 'timer' + (timerW < 30 ? ' warning' : '');
+  bEl.className = 'timer' + (timerB < 30 ? ' warning' : '');
+}
+
+// ============================================================
+// BLOCKCHAIN / SMART CONTRACT SIMULATION
+// ============================================================
+let txCount = 0;
+
+function generateHash() {
+  return Array.from({length:32}, () => Math.floor(Math.random()*256).toString(16).padStart(2,'0')).join('');
+}
+
+function addTx(action, detail, status, hash) {
+  const log = document.getElementById('txLog');
+  if (log.children.length === 1 && log.children[0].tagName !== 'DIV'.toLowerCase()) log.innerHTML = '';
+  if (!hash) hash = generateHash();
+  const item = document.createElement('div');
+  item.className = `tx-item ${status}`;
+  const time = new Date().toLocaleTimeString();
+  item.innerHTML = `
+    <div class="tx-hash">0x${hash.slice(0,10)}...${hash.slice(-6)}</div>
+    <div class="tx-action">${action}: ${detail}</div>
+    <div class="tx-time">${time} • ${status.toUpperCase()}</div>
+  `;
+  log.prepend(item);
+  if (log.children.length > 20) log.removeChild(log.lastChild);
+  txCount++;
+}
+
+function deployContract() {
+  const stake = parseFloat(document.getElementById('stakeAmount').value) || 0.01;
+  document.getElementById('modalStake').textContent = stake.toFixed(3) + ' BTC';
+  document.getElementById('modalPool').textContent = (stake * 2).toFixed(3) + ' BTC';
+  document.getElementById('deployModal').classList.add('show');
+}
+
+function confirmDeploy() {
+  closeModal('deployModal');
+  const stake = parseFloat(document.getElementById('stakeAmount').value) || 0.01;
+  contractDeployed = true;
+  gameActive = true;
+
+  const contractAddr = '0x' + generateHash().slice(0,8) + '...' + generateHash().slice(0,6);
+  const gameId = 'GAME_0x' + generateHash().slice(0,4).toUpperCase();
+  document.getElementById('contractAddr').textContent = contractAddr;
+  document.getElementById('gameId').textContent = gameId;
+  document.getElementById('prizePool').textContent = (stake*2).toFixed(3);
+  document.getElementById('balance').textContent = (0.542 - stake).toFixed(3) + ' BTC';
+  document.getElementById('contractState').textContent = 'ACTIVE';
+  document.getElementById('contractState').style.color = 'var(--accent3)';
+
+  addTx('CONTRACT DEPLOYED', `Prize: ${(stake*2).toFixed(3)} BTC`, 'confirmed');
+  addTx('STAKE LOCKED', `${stake.toFixed(3)} BTC from Player I`, 'confirmed');
+  addTx('STAKE LOCKED', `${stake.toFixed(3)} BTC from Player II`, 'confirmed');
+
+  updateStatus('White to move — Game on! Stakes locked on-chain ✓', 'accent');
+  startTimer();
+  renderBoard();
+}
+
+function resignGame() {
+  if (!gameActive) return;
+  gameActive = false; clearInterval(timerInterval);
+  const winner = turn === 'w' ? 'b' : 'w';
+  addTx('RESIGN', `${turn==='w'?'White':'Black'} resigned`, 'confirmed');
+  updateStatus(`${turn==='w'?'White':'Black'} resigned. ${winner==='w'?'White':'Black'} wins!`, 'gold');
+  setTimeout(() => showGameOver(winner), 600);
+}
+
+function offerDraw() {
+  if (!gameActive) return;
+  addTx('DRAW OFFERED', 'Awaiting opponent signature...', 'pending');
+  updateStatus('Draw offered — waiting for opponent response...', 'accent');
+  setTimeout(() => {
+    const accepted = Math.random() > 0.5;
+    if (accepted) {
+      addTx('DRAW ACCEPTED', 'Both players signed draw', 'confirmed');
+      gameActive = false; clearInterval(timerInterval);
+      updateStatus('Draw! Refunding stakes...', 'gold');
+    } else {
+      addTx('DRAW DECLINED', 'Opponent declined draw', 'confirmed');
+      updateStatus(`${turn==='w'?'White':'Black'} to move`, 'accent');
+    }
+  }, 2000);
+}
+
+function showGameOver(winner) {
+  const prizePool = document.getElementById('prizePool').textContent;
+  const addrs = { w: '0x9b2f...3e88', b: '0x4d7b...f912' };
+  document.getElementById('gameOverTitle').textContent = winner ? 'CHECKMATE!' : 'STALEMATE';
+  document.getElementById('gameOverDesc').textContent = winner ? `${winner==='w'?'White':'Black'} wins the match!` : 'The game is a draw!';
+  document.getElementById('winnerAddr').textContent = addrs[winner] || 'Both players';
+  document.getElementById('payoutAmount').textContent = prizePool + ' BTC';
+  document.getElementById('payoutTx').textContent = '0x' + generateHash().slice(0,8) + '...';
+  document.getElementById('contractState').textContent = 'SETTLED';
+  document.getElementById('contractState').style.color = '#5a8fa8';
+
+  addTx('GAME OVER', `${winner==='w'?'White':'Black'} wins ${prizePool} BTC`, 'confirmed');
+  addTx('PAYOUT', `${prizePool} BTC sent to ${addrs[winner]}`, 'confirmed');
+
+  setTimeout(() => document.getElementById('gameOverModal').classList.add('show'), 800);
+}
+
+function closeModal(id) { document.getElementById(id).classList.remove('show'); }
+
+// ============================================================
+// BLOCKCHAIN LIVE STATS
+// ============================================================
+setInterval(() => {
+  const block = parseInt(document.getElementById('blockNum').textContent.replace(/[^0-9]/g,''));
+  document.getElementById('blockNum').textContent = `BLOCK #${(block+1).toLocaleString()}`;
+  document.getElementById('gasPrice').textContent = `GAS: ${(1.5 + Math.random()*3).toFixed(1)} GWEI`;
+  document.getElementById('tps').textContent = Math.floor(700+Math.random()*300);
+}, 3000);
+
+// ============================================================
+// INIT
+// ============================================================
+initGame();
+</script>
+</body>
+</html>
